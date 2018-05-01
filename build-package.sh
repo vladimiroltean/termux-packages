@@ -326,9 +326,11 @@ termux_step_setup_variables() {
 	TERMUX_PKG_CLANG=yes # does nothing for cmake based packages. clang is chosen by cmake
 	TERMUX_PKG_FORCE_CMAKE=no # if the package has autotools as well as cmake, then set this to prefer cmake
 
-	export USR="usr"
-	export ETC="etc"
-	export VAR="var"
+	export SHEBANG="/bin/sh"
+	export USR="data/data/com.termux/files/usr"
+	export ETC="data/data/com.termux/files/etc"
+	export VAR="data/data/com.termux/files/var"
+	export _TMP="data/data/com.termux/files/tmp"
 	export prefix="/$USR"
 	export PREFIX="/$USR"
 	export DESTDIR="$TERMUX_DESTDIR"
