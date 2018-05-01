@@ -48,7 +48,7 @@ termux_download() {
 			return
 		else
 			echo "Download of $URL failed (attempt $try/$TRYMAX)" 1>&2
-			sleep 45
+			sleep 15
 		fi
 	done
 
