@@ -253,7 +253,7 @@ termux_step_setup_variables() {
 	: "${TERMUX_MAKE_PROCESSES:="$(nproc)"}"
 	: "${TERMUX_OUTDIR:="${TERMUX_SCRIPTDIR}/out"}"
 	: "${TERMUX_ARCH:="aarch64"}" # arm, aarch64, i686 or x86_64.
-	: "${TERMUX_DESTDIR:="${TERMUX_OUTDIR}/sysroot"}"
+	: "${TERMUX_SYSROOT:="${TERMUX_OUTDIR}/sysroot"}"
 	: "${TERMUX_ANDROID_HOME:="/home"}"
 	: "${TERMUX_DEBUG:=""}"
 	: "${TERMUX_PKG_API_LEVEL:="21"}"
@@ -351,12 +351,12 @@ termux_step_handle_buildarch() {
 			if test -e "$TERMUX_DATA_PREVIOUS_BACKUPDIR"; then
 				termux_error_exit "Directory already exists"
 			fi
-			if [ -d "$TERMUX_DESTDIR" ]; then
-				mv "$TERMUX_DESTDIR" "$TERMUX_DATA_PREVIOUS_BACKUPDIR"
+			if [ -d "${TERMUX_SYSROOT}" ]; then
+				mv "${TERMUX_SYSROOT}" "$TERMUX_DATA_PREVIOUS_BACKUPDIR"
 			fi
 			# Restore new one (if any)
 			if [ -d "$TERMUX_DATA_CURRENT_BACKUPDIR" ]; then
-				mv "$TERMUX_DATA_CURRENT_BACKUPDIR" "$TERMUX_DESTDIR"
+				mv "$TERMUX_DATA_CURRENT_BACKUPDIR" "${TERMUX_SYSROOT}"
 			fi
 		fi
 	fi
@@ -453,7 +453,7 @@ termux_step_start_build() {
 	test -t 1 && printf "\033]0;%s...\007" "$TERMUX_PKG_NAME"
 
 	# Avoid exporting PKG_CONFIG_LIBDIR until after termux_step_host_build.
-	export TERMUX_PKG_CONFIG_LIBDIR="$TERMUX_DESTDIR/usr/lib/pkgconfig"
+	export TERMUX_PKG_CONFIG_LIBDIR="${TERMUX_SYSROOT}/usr/lib/pkgconfig"
 	# Add a pkg-config file for the system zlib.
 	mkdir -p "$TERMUX_PKG_CONFIG_LIBDIR"
 	cat > "$TERMUX_PKG_CONFIG_LIBDIR/zlib.pc" <<-HERE
@@ -538,7 +538,7 @@ termux_step_setup_toolchain() {
 	export PATH=$PATH:$TERMUX_STANDALONE_TOOLCHAIN/bin
 
 	export CFLAGS=""
-	export LDFLAGS="-L${TERMUX_DESTDIR}/usr/lib"
+	export LDFLAGS="-L${TERMUX_SYSROOT}/usr/lib"
 
 	if [ "$TERMUX_PKG_CLANG" = "no" ]; then
 		export AS=${TERMUX_HOST_PLATFORM}-gcc
@@ -604,11 +604,11 @@ termux_step_setup_toolchain() {
 	fi
 
 	export CXXFLAGS="$CFLAGS"
-	export CPPFLAGS="-I${TERMUX_DESTDIR}/usr/include"
+	export CPPFLAGS="-I${TERMUX_SYSROOT}/usr/include"
 
 	if [ "$TERMUX_PKG_DEPENDS" != "${TERMUX_PKG_DEPENDS/libandroid-support/}" ]; then
 		# If using the android support library, link to it and include its headers as system headers:
-		CPPFLAGS+=" -isystem $TERMUX_DESTDIR/usr/include/libandroid-support"
+		CPPFLAGS+=" -isystem ${TERMUX_SYSROOT}/usr/include/libandroid-support"
 		LDFLAGS+=" -landroid-support"
 	fi
 
@@ -714,7 +714,8 @@ termux_step_setup_toolchain() {
 	fi
 
 	local _STL_LIBFILE_NAME=libc++_shared.so
-	if [ ! -f $TERMUX_DESTDIR/usr/lib/libstdc++.so ]; then
+	cd "${TERMUX_SYSROOT}/usr/lib"
+	if [ ! -f ${_STL_LIBFILE_NAME} ]; then
 		# Setup libc++_shared.so in $PREFIX/lib and libstdc++.so as a link to it,
 		# so that other C++ using packages links to it instead of the default android
 		# C++ library which does not support exceptions or STL:
@@ -748,7 +749,7 @@ termux_step_setup_toolchain() {
 
 	export PKG_CONFIG_DIR=
 	export PKG_CONFIG_LIBDIR="$TERMUX_PKG_CONFIG_LIBDIR"
-	export PKG_CONFIG_SYSROOT_DIR="$TERMUX_DESTDIR"
+	export PKG_CONFIG_SYSROOT_DIR="${TERMUX_SYSROOT}"
 	# Create a pkg-config wrapper. We use path to host pkg-config to
 	# avoid picking up a cross-compiled pkg-config later on.
 	local _HOST_PKGCONFIG
@@ -769,10 +770,10 @@ termux_step_setup_toolchain() {
 	mkdir -p "$TERMUX_PKG_TMPDIR/config-scripts"
 
 	# Filtering only shell scripts should keep the cross-compiled pkg-config out of our DESTDIR-patched cache
-	for f in $(find "$TERMUX_DESTDIR/usr/bin" -name '*-config' | xargs -r file | grep -i "shell script" | cut -f 1 -d :); do
+	for f in $(find "${TERMUX_SYSROOT}/usr/bin" -name '*-config' | xargs -r file | grep -i "shell script" | cut -f 1 -d :); do
 		local _config_script="$TERMUX_PKG_TMPDIR/config-scripts/$(basename ${f})"
 		cp ${f} ${_config_script}
-		sed -i "s%prefix *= *\"*${PREFIX}\"*%prefix=\"${TERMUX_DESTDIR}${PREFIX}\"%" ${_config_script}
+		sed -i "s%prefix *= *\"*${PREFIX}\"*%prefix=\"${TERMUX_SYSROOT}/usr\"%" ${_config_script}
 	done
 	ln -s "$TERMUX_STANDALONE_TOOLCHAIN/bin/${TERMUX_HOST_PLATFORM}-pkg-config" "$TERMUX_PKG_TMPDIR/config-scripts/pkg-config"
 	export PATH=$TERMUX_PKG_TMPDIR/config-scripts:$PATH
@@ -908,6 +909,7 @@ termux_step_configure_autotools () {
 	env $AVOID_GNULIB "$TERMUX_PKG_SRCDIR/configure" \
 		--disable-dependency-tracking \
 		--prefix="$PREFIX" \
+		--with-sysroot="${TERMUX_SYSROOT}" \
 		--disable-rpath --disable-rpath-hack --without-rpath \
 		$HOST_FLAG \
 		$TERMUX_PKG_EXTRA_CONFIGURE_ARGS \
@@ -939,9 +941,10 @@ termux_step_configure_cmake () {
 		-DCMAKE_C_FLAGS="$CFLAGS $CPPFLAGS" \
 		-DCMAKE_CXX_FLAGS="$CXXFLAGS $CPPFLAGS" \
 		-DCMAKE_LINKER="$TERMUX_STANDALONE_TOOLCHAIN/bin/$LD $LDFLAGS" \
-		-DCMAKE_FIND_ROOT_PATH="$TERMUX_DESTDIR/usr" \
+		-DCMAKE_FIND_ROOT_PATH="${TERMUX_SYSROOT}/usr" \
 		-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
 		-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+		-DCMAKE_SYSROOT="${TERMUX_SYSROOT}" \
 		-DCMAKE_INSTALL_PREFIX="$PREFIX" \
 		-DCMAKE_MAKE_PROGRAM=`which make` \
 		-DCMAKE_SYSTEM_PROCESSOR=$CMAKE_PROC \
