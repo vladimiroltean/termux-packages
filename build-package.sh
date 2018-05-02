@@ -875,7 +875,7 @@ termux_step_configure_autotools () {
 	env $AVOID_GNULIB "$TERMUX_PKG_SRCDIR/configure" \
 		--disable-dependency-tracking \
 		--prefix=$TERMUX_PREFIX \
-		--disable-rpath --disable-rpath-hack \
+		--disable-rpath --disable-rpath-hack --without-rpath \
 		$HOST_FLAG \
 		$TERMUX_PKG_EXTRA_CONFIGURE_ARGS \
 		$DISABLE_NLS \
