@@ -256,7 +256,7 @@ termux_step_setup_variables() {
 	: "${TERMUX_SYSROOT:="${TERMUX_OUTDIR}/sysroot"}"
 	: "${TERMUX_ANDROID_HOME:="/home"}"
 	: "${TERMUX_DEBUG:=""}"
-	: "${TERMUX_PKG_API_LEVEL:="21"}"
+	: "${TERMUX_PKG_API_LEVEL:="23"}"
 	: "${TERMUX_ANDROID_BUILD_TOOLS_VERSION:="27.0.3"}"
 	: "${TERMUX_NDK_VERSION:="17"}"
 
