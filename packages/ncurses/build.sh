@@ -7,6 +7,7 @@ TERMUX_PKG_SRCURL=https://dl.bintray.com/termux/upstream/ncurses-${TERMUX_PKG_VE
 # --disable-stripping to disable -s argument to install which does not work when cross compiling:
 TERMUX_PKG_EXTRA_CONFIGURE_ARGS="
 ac_cv_header_locale_h=no
+--with-install-prefix=${TERMUX_DESTDIR}
 --disable-stripping
 --enable-const
 --enable-ext-colors
@@ -14,7 +15,6 @@ ac_cv_header_locale_h=no
 --enable-overwrite
 --enable-pc-files
 --enable-widec
---mandir=$TERMUX_PREFIX/share/man
 --without-ada
 --without-cxx-binding
 --without-debug
@@ -22,6 +22,7 @@ ac_cv_header_locale_h=no
 --without-static
 --without-tests
 --with-shared
+--with-pkg-config-libdir=/${USR}/lib/pkgconfig
 "
 TERMUX_PKG_INCLUDE_IN_DEVPACKAGE="
 share/man/man1/ncursesw6-config.1*
@@ -36,12 +37,8 @@ share/man/man5
 share/man/man7
 "
 
-termux_step_pre_configure() {
-	TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --with-pkg-config-libdir=$PKG_CONFIG_LIBDIR"
-}
-
 termux_step_post_make_install () {
-	cd $TERMUX_PREFIX/lib
+	cd ${TERMUX_DESTDIR}/${USR}/lib
 	for lib in form menu ncurses panel; do
 		for file in lib${lib}w.so*; do
 			ln -s -f $file `echo $file | sed 's/w//'`
@@ -52,7 +49,7 @@ termux_step_post_make_install () {
 	ln -sf libncurses.so libcurses.so
 
 	# Some packages want these:
-	cd $TERMUX_PREFIX/include/
+	cd ${TERMUX_DESTDIR}/${USR}/include/
 	rm -Rf ncurses{,w}
 	mkdir ncurses{,w}
 	ln -s ../{ncurses.h,termcap.h,panel.h,unctrl.h,menu.h,form.h,tic.h,nc_tparm.h,term.h,eti.h,term_entry.h,ncurses_dll.h,curses.h} ncurses
@@ -61,7 +58,7 @@ termux_step_post_make_install () {
 
 termux_step_post_massage () {
 	# Strip away 30 years of cruft to decrease size.
-	local TI=$TERMUX_PKG_MASSAGEDIR/$TERMUX_PREFIX/share/terminfo
+	local TI=$TERMUX_PKG_MASSAGEDIR/${USR}/share/terminfo
 	mv $TI $TERMUX_PKG_TMPDIR/full-terminfo
 	mkdir -p $TI/{a,d,e,n,l,p,r,s,t,v,x}
 	cp $TERMUX_PKG_TMPDIR/full-terminfo/a/ansi $TI/a/
