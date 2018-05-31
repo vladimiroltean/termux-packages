@@ -1,0 +1,11 @@
+--- a/components/engine/daemon/daemon.go
++++ b/components/engine/daemon/daemon.go
+@@ -783,3 +783,7 @@
+ 	lgrMap := make(map[string]image.LayerGetReleaser)
+ 	for os, ls := range layerStores {
+-		lgrMap[os] = ls
++		if os == "android" {
++			lgrMap["linux"] = ls
++		} else {
++			lgrMap[os] = ls
++		}

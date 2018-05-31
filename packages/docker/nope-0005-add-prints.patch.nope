@@ -1,0 +1,22 @@
+--- a/components/engine/image/store.go
++++ b/components/engine/image/store.go
+@@ -160,8 +160,8 @@
+ 		if !system.IsOSSupported(img.OperatingSystem()) {
+ 			return "", system.ErrNotSupportedOperatingSystem
+ 		}
+-		l, err = is.lss[img.OperatingSystem()].Get(layerID)
++		l, err = is.lss["android"].Get(layerID)
+ 		if err != nil {
+ 			return "", errors.Wrapf(err, "failed to get layer %s", layerID)
+ 		}
+ 	}
+@@ -252,4 +252,4 @@
+ 	if imageMeta.layer != nil {
+-		return is.lss[img.OperatingSystem()].Release(imageMeta.layer)
++		return is.lss["android"].Release(imageMeta.layer)
+ 	}
+ 	return nil, nil
+@@ -81,2 +81,2 @@
+-			l, err = is.lss[img.OperatingSystem()].Get(chainID)
++			l, err = is.lss["android"].Get(chainID)
+ 			if err != nil {

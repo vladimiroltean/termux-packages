@@ -1,0 +1,183 @@
+From 769bf52208c259fd96f5ed8aa10a42a5eee77382 Mon Sep 17 00:00:00 2001
+From: Vladimir Oltean <olteanv@gmail.com>
+Date: Thu, 31 May 2018 22:16:33 +0300
+Subject: [PATCH] fix image search
+
+Signed-off-by: Vladimir Oltean <olteanv@gmail.com>
+---
+ components/engine/daemon/images/image_history.go |  4 ++--
+ components/engine/daemon/images/image_inspect.go |  6 +++---
+ components/engine/daemon/images/image_windows.go |  4 ++--
+ components/engine/daemon/images/images.go        | 14 +++++++-------
+ components/engine/distribution/push_v1.go        |  2 +-
+ components/engine/image/store.go                 |  6 +++---
+ 6 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/components/engine/daemon/images/image_history.go b/components/engine/daemon/images/image_history.go
+index b4ca25b..cb45856 100644
+--- a/components/engine/daemon/images/image_history.go
++++ b/components/engine/daemon/images/image_history.go
+@@ -36,12 +36,12 @@ func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem,
+ 				return nil, system.ErrNotSupportedOperatingSystem
+ 			}
+ 			rootFS.Append(img.RootFS.DiffIDs[layerCounter])
+-			l, err := i.layerStores[img.OperatingSystem()].Get(rootFS.ChainID())
++			l, err := i.layerStores["android"()].Get(rootFS.ChainID())
+ 			if err != nil {
+ 				return nil, err
+ 			}
+ 			layerSize, err = l.DiffSize()
+-			layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
++			layer.ReleaseAndLog(i.layerStores["android"()], l)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+diff --git a/components/engine/daemon/images/image_inspect.go b/components/engine/daemon/images/image_inspect.go
+index 16c4c9b..dcf52a0 100644
+--- a/components/engine/daemon/images/image_inspect.go
++++ b/components/engine/daemon/images/image_inspect.go
+@@ -37,11 +37,11 @@ func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
+ 	var layerMetadata map[string]string
+ 	layerID := img.RootFS.ChainID()
+ 	if layerID != "" {
+-		l, err := i.layerStores[img.OperatingSystem()].Get(layerID)
++		l, err := i.layerStores["android"()].Get(layerID)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		defer layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
++		defer layer.ReleaseAndLog(i.layerStores["android"()], l)
+ 		size, err = l.Size()
+ 		if err != nil {
+ 			return nil, err
+@@ -86,7 +86,7 @@ func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
+ 		},
+ 	}
+ 
+-	imageInspect.GraphDriver.Name = i.layerStores[img.OperatingSystem()].DriverName()
++	imageInspect.GraphDriver.Name = i.layerStores["android"()].DriverName()
+ 	imageInspect.GraphDriver.Data = layerMetadata
+ 
+ 	return imageInspect, nil
+diff --git a/components/engine/daemon/images/image_windows.go b/components/engine/daemon/images/image_windows.go
+index 6f4be49..a2c8dd6 100644
+--- a/components/engine/daemon/images/image_windows.go
++++ b/components/engine/daemon/images/image_windows.go
+@@ -23,9 +23,9 @@ func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer)
+ 		if !system.IsOSSupported(img.OperatingSystem()) {
+ 			return nil, errors.Wrapf(system.ErrNotSupportedOperatingSystem, "cannot get layerpath for ImageID %s", img.RootFS.ChainID())
+ 		}
+-		layerPath, err := layer.GetLayerPath(i.layerStores[img.OperatingSystem()], img.RootFS.ChainID())
++		layerPath, err := layer.GetLayerPath(i.layerStores["android"()], img.RootFS.ChainID())
+ 		if err != nil {
+-			return nil, errors.Wrapf(err, "failed to get layer path from graphdriver %s for ImageID %s", i.layerStores[img.OperatingSystem()], img.RootFS.ChainID())
++			return nil, errors.Wrapf(err, "failed to get layer path from graphdriver %s for ImageID %s", i.layerStores["android"()], img.RootFS.ChainID())
+ 		}
+ 		// Reverse order, expecting parent first
+ 		folders = append([]string{layerPath}, folders...)
+diff --git a/components/engine/daemon/images/images.go b/components/engine/daemon/images/images.go
+index 4921234..f59f9bf 100644
+--- a/components/engine/daemon/images/images.go
++++ b/components/engine/daemon/images/images.go
+@@ -124,7 +124,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
+ 		layerID := img.RootFS.ChainID()
+ 		var size int64
+ 		if layerID != "" {
+-			l, err := i.layerStores[img.OperatingSystem()].Get(layerID)
++			l, err := i.layerStores["android"()].Get(layerID)
+ 			if err != nil {
+ 				// The layer may have been deleted between the call to `Map()` or
+ 				// `Heads()` and the call to `Get()`, so we just ignore this error
+@@ -135,7 +135,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
+ 			}
+ 
+ 			size, err = l.Size()
+-			layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
++			layer.ReleaseAndLog(i.layerStores["android"()], l)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -187,7 +187,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
+ 			// lazily init variables
+ 			if imagesMap == nil {
+ 				allContainers = i.containers.List()
+-				allLayers = i.layerStores[img.OperatingSystem()].Map()
++				allLayers = i.layerStores["android"()].Map()
+ 				imagesMap = make(map[*image.Image]*types.ImageSummary)
+ 				layerRefs = make(map[layer.ChainID]int)
+ 			}
+@@ -274,11 +274,11 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
+ 	if !system.IsOSSupported(img.OperatingSystem()) {
+ 		return "", errors.Wrap(err, system.ErrNotSupportedOperatingSystem.Error())
+ 	}
+-	l, err := i.layerStores[img.OperatingSystem()].Get(img.RootFS.ChainID())
++	l, err := i.layerStores["android"()].Get(img.RootFS.ChainID())
+ 	if err != nil {
+ 		return "", errors.Wrap(err, "error getting image layer")
+ 	}
+-	defer i.layerStores[img.OperatingSystem()].Release(l)
++	defer i.layerStores["android"()].Release(l)
+ 
+ 	ts, err := l.TarStreamFrom(parentChainID)
+ 	if err != nil {
+@@ -286,11 +286,11 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
+ 	}
+ 	defer ts.Close()
+ 
+-	newL, err := i.layerStores[img.OperatingSystem()].Register(ts, parentChainID)
++	newL, err := i.layerStores["android"()].Register(ts, parentChainID)
+ 	if err != nil {
+ 		return "", errors.Wrap(err, "error registering layer")
+ 	}
+-	defer i.layerStores[img.OperatingSystem()].Release(newL)
++	defer i.layerStores["android"()].Release(newL)
+ 
+ 	newImage := *img
+ 	newImage.RootFS = nil
+diff --git a/components/engine/distribution/push_v1.go b/components/engine/distribution/push_v1.go
+index 3578c06..673885b 100644
+--- a/components/engine/distribution/push_v1.go
++++ b/components/engine/distribution/push_v1.go
+@@ -214,7 +214,7 @@ func (p *v1Pusher) imageListForTag(imgID image.ID, dependenciesSeen map[layer.Ch
+ 	if !system.IsOSSupported(img.OperatingSystem()) {
+ 		return nil, system.ErrNotSupportedOperatingSystem
+ 	}
+-	pl, err := p.config.LayerStores[img.OperatingSystem()].Get(topLayerID)
++	pl, err := p.config.LayerStores["android"()].Get(topLayerID)
+ 	*referencedLayers = append(*referencedLayers, pl)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("failed to get top layer from image: %v", err)
+diff --git a/components/engine/image/store.go b/components/engine/image/store.go
+index 9fd7d7d..c44dd6a 100644
+--- a/components/engine/image/store.go
++++ b/components/engine/image/store.go
+@@ -78,7 +78,7 @@ func (is *store) restore() error {
+ 			if !system.IsOSSupported(img.OperatingSystem()) {
+ 				return system.ErrNotSupportedOperatingSystem
+ 			}
+-			l, err = is.lss[img.OperatingSystem()].Get(chainID)
++			l, err = is.lss["android"()].Get(chainID)
+ 			if err != nil {
+ 				if err == layer.ErrLayerDoesNotExist {
+ 					logrus.Errorf("layer does not exist, not restoring image %v, %v, %s", dgst, chainID, img.OperatingSystem())
+@@ -160,7 +160,7 @@ func (is *store) Create(config []byte) (ID, error) {
+ 		if !system.IsOSSupported(img.OperatingSystem()) {
+ 			return "", system.ErrNotSupportedOperatingSystem
+ 		}
+-		l, err = is.lss[img.OperatingSystem()].Get(layerID)
++		l, err = is.lss["android"()].Get(layerID)
+ 		if err != nil {
+ 			return "", errors.Wrapf(err, "failed to get layer %s", layerID)
+ 		}
+@@ -250,7 +250,7 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
+ 	is.fs.Delete(id.Digest())
+ 
+ 	if imageMeta.layer != nil {
+-		return is.lss[img.OperatingSystem()].Release(imageMeta.layer)
++		return is.lss["android"()].Release(imageMeta.layer)
+ 	}
+ 	return nil, nil
+ }
+-- 
+2.7.4
+
