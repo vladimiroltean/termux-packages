@@ -1,0 +1,23 @@
+diff -u -r a/components/cli/vendor/github.com/docker/docker/pkg/system/lcow.go b/components/cli/vendor/github.com/docker/docker/pkg/system/lcow.go
+--- a/components/cli/vendor/github.com/docker/docker/pkg/system/lcow.go
++++ b/components/cli/vendor/github.com/docker/docker/pkg/system/lcow.go
+@@ -6,3 +6,4 @@
+ 	"strings"
+ 
++	"github.com/sirupsen/logrus"
+ 	specs "github.com/opencontainers/image-spec/specs-go/v1"
+@@ -62,9 +62,14 @@
+ func IsOSSupported(os string) bool {
++	logrus.Warnf("%s\n", runtime.GOOS)
++	logrus.Warnf("%s\n", os)
+ 	if runtime.GOOS == os {
+ 		return true
+ 	}
+ 	if LCOWSupported() && os == "linux" {
+ 		return true
+ 	}
++	if runtime.GOOS == "android" && os == "linux" {
++		return true
++	}
+ 	return false
+ }
