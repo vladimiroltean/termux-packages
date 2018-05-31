@@ -13,20 +13,6 @@ diff --git a/components/engine/daemon/graphdriver/overlay/overlay.go b/component
 index 3fb823f..f337d6f 100644
 --- a/components/engine/daemon/graphdriver/overlay/overlay.go
 +++ b/components/engine/daemon/graphdriver/overlay/overlay.go
-@@ -189,11 +189,11 @@ func supportsOverlay() error {
- 
- 	s := bufio.NewScanner(f)
- 	for s.Scan() {
--		if s.Text() == "nodev\toverlay" {
-+		if s.Text() == "nodev\toverlayfs" {
- 			return nil
- 		}
- 	}
--	logrus.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
-+	logrus.Error("'overlayfs' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
- 	return graphdriver.ErrNotSupported
- }
- 
 @@ -392,17 +392,11 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
  	var (
  		lowerDir = path.Join(d.dir(string(lowerID)), "root")
@@ -35,8 +21,7 @@ index 3fb823f..f337d6f 100644
 -		opts     = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
 +		opts     = fmt.Sprintf("lowerdir=%s,upperdir=%s", lowerDir, upperDir)
  	)
--	if err := unix.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
-+	if err := unix.Mount("overlayfs", mergedDir, "overlayfs", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
+ 	if err := unix.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
  		return nil, fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
  	}
 -	// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
